@@ -138,10 +138,13 @@ async function getOpenSkyToken() {
       openSkyToken = null;
       openSkyTokenExpiresAt = 0;
 
-      console.error(
-        "OpenSky authentication failed:",
-        error.response?.status || error.message
-      );
+      console.error("OpenSky authentication failed:", {
+  status: error.response?.status ?? null,
+  code: error.code ?? null,
+  message: error.message,
+  clientIdConfigured: Boolean(process.env.OPENSKY_CLIENT_ID),
+  clientSecretConfigured: Boolean(process.env.OPENSKY_CLIENT_SECRET),
+});
 
       throw error;
     } finally {
@@ -158,22 +161,19 @@ async function refreshGlobalData() {
   globalFetching = true;
 
   try {
-    console.log("Testing OpenSky authentication host...");
+  console.log("OpenSky host test started");
 
-    try {
-      const test = await axios.get(
-        "https://auth.opensky-network.org",
-        { timeout: 10000 }
-      );
-
-      console.log("OpenSky host reachable:", test.status);
-    } catch (error) {
-      console.log(
-        "OpenSky host test:",
-        error.response?.status || error.code || error.message
-      );
-    }
-
+axios
+  .get("https://auth.opensky-network.org", { timeout: 5000 })
+  .then((response) => {
+    console.log("OpenSky host reachable:", response.status);
+  })
+  .catch((error) => {
+    console.log(
+      "OpenSky host test failed:",
+      error.response?.status || error.code || error.message
+    );
+  });
     console.log("Refreshing OpenSky global snapshot...");
 
     const token = await getOpenSkyToken();
