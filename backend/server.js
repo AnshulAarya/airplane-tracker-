@@ -174,27 +174,56 @@ app.get("/api/aircraft", async (req, res) => {
   const zoom = Number(req.query.zoom ?? 2);
 
   // World view: use the cached global snapshot.
+
+  // World view: prefer the cached global OpenSky snapshot.
   if (zoom <= 3) {
     if (
       !globalUpdatedAt ||
       Date.now() - globalUpdatedAt >= GLOBAL_CACHE_MS
     ) {
-      // Return cached data immediately while refreshing
-      // in the background if we already have a snapshot.
-      if (globalAircraft.length) {
+      if (globalAircraft.length > 0) {
+        // Serve cached global data while refreshing in background.
         refreshGlobalData();
       } else {
         await refreshGlobalData();
       }
     }
 
+    // Use global data whenever available.
+    if (globalAircraft.length > 0) {
+      return res.json({
+        count: globalAircraft.length,
+        lastUpdated: new Date(globalUpdatedAt).toISOString(),
+        source: "OpenSky",
+        aircraft: globalAircraft,
+      });
+    }
+
+    // Fallback: show aircraft near the current map center.
+    // This is regional coverage, not worldwide coverage.
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lon) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lon >= -180 &&
+      lon <= 180
+    ) {
+      const regionalAircraft = await getRegionalData(lat, lon);
+
+      return res.json({
+        count: regionalAircraft.length,
+        lastUpdated: new Date().toISOString(),
+        source: "ADSB.fi fallback (regional)",
+        aircraft: regionalAircraft,
+      });
+    }
+
     return res.json({
-      count: globalAircraft.length,
-      lastUpdated: globalUpdatedAt
-        ? new Date(globalUpdatedAt).toISOString()
-        : null,
-      source: "OpenSky",
-      aircraft: globalAircraft,
+      count: 0,
+      lastUpdated: null,
+      source: "OpenSky unavailable; no valid map center",
+      aircraft: [],
     });
   }
 
