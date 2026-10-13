@@ -161,32 +161,40 @@ async function refreshGlobalData() {
   globalFetching = true;
 
   try {
-  console.log("OpenSky host test started");
+ 
+console.log("OpenSky host test started");
 
-axios
-  .get("https://auth.opensky-network.org", { timeout: 5000 })
-  .then((response) => {
-    console.log("OpenSky host reachable:", response.status);
-  })
-  .catch((error) => {
-    console.log(
-      "OpenSky host test failed:",
-      error.response?.status || error.code || error.message
-    );
+try {
+  const response = await axios.get(
+    "https://auth.opensky-network.org",
+    {
+      timeout: 10000,
+      validateStatus: () => true,
+    }
+  );
+
+  console.log("OpenSky host reachable:", response.status);
+} catch (error) {
+  console.log("OpenSky host test failed:", {
+    code: error.code,
+    message: error.message,
+    status: error.response?.status ?? null,
   });
-    console.log("Refreshing OpenSky global snapshot...");
+}
 
-    const token = await getOpenSkyToken();
+console.log("Refreshing OpenSky global snapshot...");
 
-    const response = await axios.get(
-      "https://opensky-network.org/api/states/all",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 25000,
-      }
-    );
+const token = await getOpenSkyToken();
+
+const response = await axios.get(
+  "https://opensky-network.org/api/states/all",
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    timeout: 25000,
+  }
+);
 
     globalAircraft = normalizeOpenSky(response.data.states || []);
     globalUpdatedAt = Date.now();
