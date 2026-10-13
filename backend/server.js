@@ -15,6 +15,13 @@ const GLOBAL_CACHE_MS = 15 * 60 * 1000;
 const REGIONAL_CACHE_MS = 5000;
 const REGIONAL_DISTANCE = 250;
 
+const OPENSKY_TOKEN_URL =
+  "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+
+let openSkyToken = null;
+let openSkyTokenExpiresAt = 0;
+let tokenFetching = null;
+
 let globalAircraft = [];
 let globalUpdatedAt = 0;
 let globalFetching = false;
@@ -89,6 +96,61 @@ function normalizeAdsb(planes = []) {
     }));
 }
 
+async function getOpenSkyToken() {
+  if (openSkyToken && Date.now() < openSkyTokenExpiresAt) {
+    return openSkyToken;
+  }
+
+  // Avoid requesting multiple tokens simultaneously.
+  if (tokenFetching) {
+    return tokenFetching;
+  }
+
+  tokenFetching = (async () => {
+    try {
+      const params = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: process.env.OPENSKY_CLIENT_ID,
+        client_secret: process.env.OPENSKY_CLIENT_SECRET,
+      });
+
+      const response = await axios.post(
+        OPENSKY_TOKEN_URL,
+        params.toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          timeout: 15000,
+        }
+      );
+
+      openSkyToken = response.data.access_token;
+
+      const expiresIn = response.data.expires_in || 1800;
+      openSkyTokenExpiresAt =
+        Date.now() + Math.max(expiresIn - 60, 60) * 1000;
+
+      console.log("OpenSky authentication successful.");
+
+      return openSkyToken;
+    } catch (error) {
+      openSkyToken = null;
+      openSkyTokenExpiresAt = 0;
+
+      console.error(
+        "OpenSky authentication failed:",
+        error.response?.status || error.message
+      );
+
+      throw error;
+    } finally {
+      tokenFetching = null;
+    }
+  })();
+
+  return tokenFetching;
+}
 async function refreshGlobalData() {
   if (globalFetching) return;
 
@@ -97,15 +159,19 @@ async function refreshGlobalData() {
   try {
     console.log("Refreshing OpenSky global snapshot...");
 
+    const token = await getOpenSkyToken();
+
     const response = await axios.get(
       "https://opensky-network.org/api/states/all",
-      { timeout: 25000 }
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 25000,
+      }
     );
 
-    globalAircraft = normalizeOpenSky(
-      response.data.states || []
-    );
-
+    globalAircraft = normalizeOpenSky(response.data.states || []);
     globalUpdatedAt = Date.now();
 
     console.log(
@@ -117,7 +183,7 @@ async function refreshGlobalData() {
       error.response?.status || error.message
     );
 
-    // Keep the last successful snapshot.
+    // Preserve the last successful snapshot.
   } finally {
     globalFetching = false;
   }
