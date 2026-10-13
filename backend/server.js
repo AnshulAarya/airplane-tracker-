@@ -12,7 +12,7 @@ const PORT = 5000;
 const GLOBAL_CACHE_MS = 15 * 60 * 1000;
 
 // ADS-B.fi public API: maximum 250 NM per request.
-const REGIONAL_CACHE_MS = 1;
+const REGIONAL_CACHE_MS = 5000;
 const REGIONAL_DISTANCE = 250;
 
 let globalAircraft = [];
@@ -235,10 +235,11 @@ res.json({
 });
 });
 
-app.listen(PORT, "127.0.0.1", () => {
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log("================================");
   console.log("ZOOM-AWARE AIRPLANE TRACKER");
-  console.log(`http://127.0.0.1:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
   console.log("================================");
 
   // Load global data at startup.
