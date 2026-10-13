@@ -250,9 +250,18 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/aircraft", async (req, res) => {
-  const lat = Number(req.query.lat);
-  const lon = Number(req.query.lon);
-  const zoom = Number(req.query.zoom ?? 2);
+  const DEFAULT_LAT = 28.6139; // New Delhi
+const DEFAULT_LON = 77.2090;
+
+const lat = req.query.lat !== undefined
+  ? Number(req.query.lat)
+  : DEFAULT_LAT;
+
+const lon = req.query.lon !== undefined
+  ? Number(req.query.lon)
+  : DEFAULT_LON;
+
+const zoom = Number(req.query.zoom ?? 2);
 
   // World view: use the cached global snapshot.
 
