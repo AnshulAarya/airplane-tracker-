@@ -121,7 +121,7 @@ async function getOpenSkyToken() {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-          timeout: 15000,
+          timeout: 30000,
         }
       );
 
