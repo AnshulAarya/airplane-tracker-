@@ -151,29 +151,33 @@ async function getOpenSkyToken() {
 
   return tokenFetching;
 }
+
 async function refreshGlobalData() {
   if (globalFetching) return;
 
   globalFetching = true;
 
   try {
+    console.log("Testing OpenSky authentication host...");
+
+    try {
+      const test = await axios.get(
+        "https://auth.opensky-network.org",
+        { timeout: 10000 }
+      );
+
+      console.log("OpenSky host reachable:", test.status);
+    } catch (error) {
+      console.log(
+        "OpenSky host test:",
+        error.response?.status || error.code || error.message
+      );
+    }
+
     console.log("Refreshing OpenSky global snapshot...");
 
     const token = await getOpenSkyToken();
-       console.log("Testing OpenSky authentication endpoint...");
 
-try {
-  const test = await axios.get(
-    "https://auth.opensky-network.org",
-    { timeout: 10000 }
-  );
-  console.log("OpenSky host reachable:", test.status);
-} catch (error) {
-  console.log(
-    "OpenSky host test:",
-    error.response?.status || error.code || error.message
-  );
-}
     const response = await axios.get(
       "https://opensky-network.org/api/states/all",
       {
@@ -195,8 +199,6 @@ try {
       "OpenSky error:",
       error.response?.status || error.message
     );
-
-    // Preserve the last successful snapshot.
   } finally {
     globalFetching = false;
   }
