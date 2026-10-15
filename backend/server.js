@@ -155,6 +155,38 @@ async function getOpenSkyToken() {
   return tokenFetching;
 }
 
+async function diagnoseOpenSkyConnection() {
+  console.log("Testing OpenSky OAuth with fetch...");
+
+  try {
+    const response = await fetch(
+      OPENSKY_TOKEN_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: process.env.OPENSKY_CLIENT_ID,
+          client_secret: process.env.OPENSKY_CLIENT_SECRET,
+        }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+
+    console.log("OpenSky fetch HTTP status:", response.status);
+
+    // Consume the response without logging its contents.
+    await response.text();
+  } catch (error) {
+    console.error("OpenSky fetch diagnostic failed:", {
+      name: error.name,
+      code: error.cause?.code ?? null,
+      message: error.message,
+    });
+  }
+}
 async function refreshGlobalData() {
   if (globalFetching) return;
 
@@ -363,11 +395,15 @@ res.json({
 });
 
 
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log("================================");
   console.log("ZOOM-AWARE AIRPLANE TRACKER");
   console.log(`Server running on port ${PORT}`);
   console.log("================================");
+
+  // Test whether Render can reach OpenSky OAuth.
+  diagnoseOpenSkyConnection();
 
   // Load global data at startup.
   refreshGlobalData();
