@@ -131,44 +131,17 @@ async function refreshGlobalData() {
   globalFetching = true;
 
   try {
-    console.log("Refreshing global aircraft data...");
+    console.log("Refreshing global aircraft data from GitHub Pages...");
 
-    let response;
-    let source = "OpenSky";
-
-    // First try the authenticated API.
-    try {
-      const token = await Promise.race([
-        getOpenSkyToken(),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("OpenSky authentication timed out")),
-            8000
-          )
-        ),
-      ]);
-
-      response = await axios.get(
-        "https://opensky-network.org/api/states/all",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 15000,
-        }
-      );
-    } catch (authError) {
-      console.warn(
-        "Authenticated OpenSky request failed; trying public endpoint:",
-        authError.message
-      );
-
-      // Try OpenSky's documented public endpoint.
-      response = await axios.get(
-        "https://opensky-network.org/api/states/all",
-        { timeout: 15000 }
-      );
-
-      source = "OpenSky (public)";
-    }
+    const response = await axios.get(
+      "https://anshulaarya.github.io/airplane-tracker-/aircraft-snapshot.json",
+      {
+        timeout: 20000,
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      }
+    );
 
     const states = response.data?.states || [];
     const aircraft = normalizeOpenSky(states);
@@ -178,15 +151,15 @@ async function refreshGlobalData() {
       globalUpdatedAt = Date.now();
 
       console.log(
-        `${source} updated: ${globalAircraft.length} aircraft`
+        `OpenSky snapshot updated: ${globalAircraft.length} aircraft`
       );
     } else {
       console.warn(
-        "OpenSky returned no aircraft; retaining previous cache."
+        "Snapshot contains no aircraft; retaining previous cache."
       );
     }
   } catch (error) {
-    console.error("Global aircraft refresh failed:", {
+    console.error("Global snapshot refresh failed:", {
       status: error.response?.status ?? null,
       code: error.code ?? null,
       message: error.message,
@@ -195,8 +168,6 @@ async function refreshGlobalData() {
     globalFetching = false;
   }
 }
-
-
 async function getRegionalData(lat, lon) {
   const key = `${lat.toFixed(1)},${lon.toFixed(1)}`;
   const cached = regionalCache.get(key);
