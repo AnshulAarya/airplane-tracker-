@@ -1,0 +1,32 @@
+
+name: Test OpenSky Connectivity
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-opensky:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test OpenSky public API
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          url = "https://opensky-network.org/api/states/all"
+
+          try:
+              with urllib.request.urlopen(url, timeout=20) as response:
+                  data = json.load(response)
+                  aircraft = data.get("states") or []
+
+                  print("HTTP status:", response.status)
+                  print("Aircraft count:", len(aircraft))
+                  print("OpenSky connection successful!")
+
+          except Exception as error:
+              print("OpenSky connection failed:", repr(error))
+              raise
+          PY
