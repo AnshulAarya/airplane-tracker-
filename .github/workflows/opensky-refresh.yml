@@ -1,15 +1,14 @@
 
-name: Test OpenSky Connectivity
+name: Refresh OpenSky Aircraft Snapshot
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-opensky:
+  fetch-aircraft:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Test OpenSky public API
+      - name: Fetch global aircraft data
         run: |
           python - <<'PY'
           import json
@@ -17,16 +16,33 @@ jobs:
 
           url = "https://opensky-network.org/api/states/all"
 
-          try:
-              with urllib.request.urlopen(url, timeout=20) as response:
-                  data = json.load(response)
-                  aircraft = data.get("states") or []
+          request = urllib.request.Request(
+              url,
+              headers={"User-Agent": "AirplaneTracker/1.0"}
+          )
 
-                  print("HTTP status:", response.status)
-                  print("Aircraft count:", len(aircraft))
-                  print("OpenSky connection successful!")
+          with urllib.request.urlopen(request, timeout=30) as response:
+              data = json.load(response)
 
-          except Exception as error:
-              print("OpenSky connection failed:", repr(error))
-              raise
+          states = data.get("states") or []
+
+          snapshot = {
+              "source": "OpenSky",
+              "time": data.get("time"),
+              "count": len(states),
+              "states": states
+          }
+
+          with open("aircraft-snapshot.json", "w") as file:
+              json.dump(snapshot, file)
+
+          print("Aircraft count:", len(states))
+          print("Snapshot created successfully.")
           PY
+
+      - name: Upload aircraft snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-snapshot
+          path: aircraft-snapshot.json
+          retention-days: 1
