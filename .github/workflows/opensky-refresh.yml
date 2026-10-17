@@ -18,15 +18,10 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Fetch global aircraft data
         run: |
           mkdir -p site
-
           python - <<'PY'
           import json
           import urllib.request
@@ -41,7 +36,6 @@ jobs:
               data = json.load(response)
 
           states = data.get("states") or []
-
           snapshot = {
               "source": "OpenSky",
               "time": data.get("time"),
@@ -53,7 +47,6 @@ jobs:
               json.dump(snapshot, file)
 
           print("Aircraft count:", len(states))
-          print("Snapshot created successfully.")
           PY
 
       - name: Upload Pages artifact
