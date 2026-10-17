@@ -298,7 +298,25 @@ app.get("/api/aircraft", async (req, res) => {
     aircraft,
   });
 });
+  app.get("/api/opensky-test", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://opensky-network.org/api/states/all",
+      { timeout: 10000 }
+    );
 
+    res.json({
+      success: true,
+      aircraftCount: response.data.states?.length ?? 0
+    });
+  } catch (error) {
+    res.status(502).json({
+      success: false,
+      code: error.code ?? null,
+      message: error.message
+    });
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log("================================");
   console.log("ZOOM-AWARE AIRPLANE TRACKER");
