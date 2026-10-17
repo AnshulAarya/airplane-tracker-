@@ -124,30 +124,69 @@ async function getOpenSkyToken() {
   return tokenFetching;
 }
 
+
 async function refreshGlobalData() {
   if (globalFetching) return;
 
   globalFetching = true;
 
   try {
-    console.log("Refreshing OpenSky global snapshot...");
+    console.log("Refreshing global aircraft data...");
 
-    const token = await getOpenSkyToken();
+    let response;
+    let source = "OpenSky";
 
-    const response = await axios.get(
-      "https://opensky-network.org/api/states/all",
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 25000,
-      }
-    );
+    // First try the authenticated API.
+    try {
+      const token = await Promise.race([
+        getOpenSkyToken(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("OpenSky authentication timed out")),
+            8000
+          )
+        ),
+      ]);
 
-    globalAircraft = normalizeOpenSky(response.data.states || []);
-    globalUpdatedAt = Date.now();
+      response = await axios.get(
+        "https://opensky-network.org/api/states/all",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000,
+        }
+      );
+    } catch (authError) {
+      console.warn(
+        "Authenticated OpenSky request failed; trying public endpoint:",
+        authError.message
+      );
 
-    console.log(`OpenSky updated: ${globalAircraft.length} aircraft`);
+      // Try OpenSky's documented public endpoint.
+      response = await axios.get(
+        "https://opensky-network.org/api/states/all",
+        { timeout: 15000 }
+      );
+
+      source = "OpenSky (public)";
+    }
+
+    const states = response.data?.states || [];
+    const aircraft = normalizeOpenSky(states);
+
+    if (aircraft.length > 0) {
+      globalAircraft = aircraft;
+      globalUpdatedAt = Date.now();
+
+      console.log(
+        `${source} updated: ${globalAircraft.length} aircraft`
+      );
+    } else {
+      console.warn(
+        "OpenSky returned no aircraft; retaining previous cache."
+      );
+    }
   } catch (error) {
-    console.error("OpenSky error:", {
+    console.error("Global aircraft refresh failed:", {
       status: error.response?.status ?? null,
       code: error.code ?? null,
       message: error.message,
@@ -156,6 +195,7 @@ async function refreshGlobalData() {
     globalFetching = false;
   }
 }
+
 
 async function getRegionalData(lat, lon) {
   const key = `${lat.toFixed(1)},${lon.toFixed(1)}`;
